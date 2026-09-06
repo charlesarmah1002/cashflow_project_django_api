@@ -1,0 +1,403 @@
+# Cashflow Project
+
+A Django REST API for managing a small business cash flow. The application is designed around a single business per user and ensures that authenticated users only see data belonging to their own business.
+
+## Project overview
+
+This project provides a backend for tracking:
+
+- businesses and users
+- bank or cash accounts
+- transaction categories
+- income and expense entries
+- account balances and cash-flow summaries
+- reporting by period, category, and account
+
+The solution is built with:
+
+- Django
+- Django REST Framework
+- Simple JWT authentication
+- SQLite by default for local development
+- django-filter and CORS support
+
+## Architecture
+
+The project is split by feature into several Django apps:
+
+- `core` — business and user registration/authentication
+- `accounts` — account management and balance calculations
+- `transactions` — categories and transactions
+- `reports` — dashboard and cash-flow reports
+
+Main project entry points:
+
+- `cashflow_project/settings.py` — project configuration
+- `cashflow_project/urls.py` — top-level URL routing
+- `manage.py` — Django management entrypoint
+
+## Features
+
+- user registration with a business created automatically
+- JWT login and refresh flow
+- account creation with optional soft-delete behavior
+- transaction validation to ensure account/category ownership and type matching
+- business-level data isolation
+- cash-flow dashboard summaries and grouped reporting
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- Python 3.10+ (or 3.11+ recommended)
+- pip
+- virtual environment support
+- Git
+
+## Local setup
+
+1. Clone the project and change into the repository directory.
+
+   ```bash
+   git clone <repository-url>
+   cd cashflow_project
+   ```
+
+2. Create and activate a virtual environment.
+
+   On macOS/Linux:
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+   On Windows PowerShell:
+
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+
+3. Install the Python dependencies.
+
+   ```bash
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+4. Copy the example environment file and configure values.
+
+   ```bash
+   copy .env.example .env
+   ```
+
+   or on macOS/Linux:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   The default values are suitable for local development. Review the file and change any variable you need.
+
+5. Apply database migrations.
+
+   ```bash
+   python manage.py migrate
+   ```
+
+6. Start the development server.
+
+   ```bash
+   python manage.py runserver
+   ```
+
+7. Open the API in the browser or with an HTTP client at:
+
+   ```text
+   http://localhost:8000/api/
+   ```
+
+## Environment variables
+
+The project uses a `.env` file for local configuration. Example values are defined in `.env.example`:
+
+```env
+SECRET_KEY=change-me
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+TIME_ZONE=UTC
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+Notes:
+
+- `SECRET_KEY` should be replaced in production with a strong secret.
+- `DEBUG` should be set to `False` in production.
+- `ALLOWED_HOSTS` should include your deployment hostnames.
+- `CORS_ALLOWED_ORIGINS` should match the domains allowed to access the API.
+
+## Database
+
+SQLite is configured by default in `cashflow_project/settings.py` for development.
+
+If you want to move to PostgreSQL later, you can replace the `DATABASES` configuration with environment-driven settings and install PostgreSQL support.
+
+## Authentication flow
+
+The API uses JWT authentication with the DRF Simple JWT package.
+
+### Register a new business and user
+
+```bash
+curl -X POST http://localhost:8000/api/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "business_name": "Acme Business",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "password": "strong-password"
+  }'
+```
+
+Response includes:
+
+- `access` token
+- `refresh` token
+- user and business details
+
+### Login
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "jane@example.com",
+    "password": "strong-password"
+  }'
+```
+
+### Use the token
+
+```bash
+curl http://localhost:8000/api/accounts/ \
+  -H "Authorization: Bearer <access_token>"
+```
+
+## API endpoints
+
+All examples below assume the server is running at `http://localhost:8000`.
+Protected routes require the access token returned by registration or login:
+
+```text
+Authorization: Bearer <access_token>
+```
+
+### Authentication
+
+#### Register
+
+```bash
+curl -X POST http://localhost:8000/api/auth/register/ \
+   -H "Content-Type: application/json" \
+   -d '{
+      "business_name": "Acme Business",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "password": "strong-password"
+   }'
+```
+
+The response contains `user`, `access`, and `refresh` values.
+
+#### Login
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login/ \
+   -H "Content-Type: application/json" \
+   -d '{
+      "email": "jane@example.com",
+      "password": "strong-password"
+   }'
+```
+
+#### Refresh an access token
+
+```bash
+curl -X POST http://localhost:8000/api/auth/refresh/ \
+   -H "Content-Type: application/json" \
+   -d '{"refresh": "<refresh_token>"}'
+```
+
+#### Get the current user
+
+```bash
+curl http://localhost:8000/api/auth/me/ \
+   -H "Authorization: Bearer <access_token>"
+```
+
+### Accounts
+
+Create an account with one of the supported types: `cash`, `bank`, `mobile_money`, or `other`.
+
+```bash
+curl -X POST http://localhost:8000/api/accounts/ \
+   -H "Authorization: Bearer <access_token>" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "name": "Main bank account",
+      "type": "bank",
+      "opening_balance": "1000.00"
+   }'
+```
+
+```bash
+curl http://localhost:8000/api/accounts/ \
+   -H "Authorization: Bearer <access_token>"
+
+curl -X PATCH http://localhost:8000/api/accounts/<account_id>/ \
+   -H "Authorization: Bearer <access_token>" \
+   -H "Content-Type: application/json" \
+   -d '{"name": "Operating account"}'
+
+curl -X DELETE http://localhost:8000/api/accounts/<account_id>/ \
+   -H "Authorization: Bearer <access_token>"
+```
+
+`DELETE` soft-deletes the account by marking it inactive. Inactive accounts are not returned by the list endpoint and cannot be used for new transactions.
+
+### Categories
+
+Categories use either `income` or `expense` as their type.
+
+```bash
+curl -X POST http://localhost:8000/api/categories/ \
+   -H "Authorization: Bearer <access_token>" \
+   -H "Content-Type: application/json" \
+   -d '{"name": "Office rental", "type": "expense"}'
+
+curl http://localhost:8000/api/categories/?type=expense \
+   -H "Authorization: Bearer <access_token>"
+
+curl -X PATCH http://localhost:8000/api/categories/<category_id>/ \
+   -H "Authorization: Bearer <access_token>" \
+   -H "Content-Type: application/json" \
+   -d '{"name": "Office rent"}'
+
+curl -X DELETE http://localhost:8000/api/categories/<category_id>/ \
+   -H "Authorization: Bearer <access_token>"
+```
+
+### Transactions
+
+The `account` and `category` values are IDs returned by their respective endpoints. The transaction `type` must match the category type, and `amount` must be greater than zero.
+
+```bash
+curl -X POST http://localhost:8000/api/transactions/ \
+   -H "Authorization: Bearer <access_token>" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "account": 1,
+      "category": 2,
+      "type": "expense",
+      "amount": "150.00",
+      "description": "Office rental",
+      "date": "2026-09-04"
+   }'
+```
+
+Transactions can be filtered by `account`, `category`, `type`, `date_from`, and `date_to`, and ordered by `date`, `created_at`, or `amount`.
+
+```bash
+curl "http://localhost:8000/api/transactions/?type=expense&date_from=2026-09-01&date_to=2026-09-30&ordering=-amount" \
+   -H "Authorization: Bearer <access_token>"
+
+curl -X PATCH http://localhost:8000/api/transactions/<transaction_id>/ \
+   -H "Authorization: Bearer <access_token>" \
+   -H "Content-Type: application/json" \
+   -d '{"description": "September office rental"}'
+
+curl -X DELETE http://localhost:8000/api/transactions/<transaction_id>/ \
+   -H "Authorization: Bearer <access_token>"
+```
+
+### Reports
+
+#### Dashboard summary
+
+```bash
+curl http://localhost:8000/api/dashboard/summary/ \
+   -H "Authorization: Bearer <access_token>"
+```
+
+#### Cash flow
+
+Use `group_by=day`, `group_by=week`, or `group_by=month`. The default date range is the current month.
+
+```bash
+curl "http://localhost:8000/api/reports/cashflow/?from=2026-09-01&to=2026-09-30&group_by=week" \
+   -H "Authorization: Bearer <access_token>"
+```
+
+#### Totals by category
+
+The optional `type` query parameter accepts `income` or `expense`.
+
+```bash
+curl "http://localhost:8000/api/reports/by-category/?from=2026-09-01&to=2026-09-30&type=expense" \
+   -H "Authorization: Bearer <access_token>"
+```
+
+#### Totals by account
+
+```bash
+curl http://localhost:8000/api/reports/by-account/ \
+   -H "Authorization: Bearer <access_token>"
+```
+
+## Request rules
+
+The API enforces the following rules:
+
+- the account must belong to the current user business
+- the category must belong to the current user business
+- the transaction type must match the category type
+- inactive accounts cannot be used
+- amounts must be greater than zero
+
+## Running tests
+
+To run the project test suite:
+
+```bash
+python manage.py test
+```
+
+The included API tests cover registration, authentication, business isolation, transaction rules, account soft-delete behavior, and dashboard calculations.
+
+## Production notes
+
+This repository is set up as a backend API service. It does not include a separate frontend build step by default.
+
+For deployment, you should:
+
+- set `DEBUG=False`
+- configure a secure `SECRET_KEY`
+- use a production database such as PostgreSQL
+- set `ALLOWED_HOSTS` and `CORS_ALLOWED_ORIGINS`
+- run behind a reverse proxy or application server in production
+- collect static files if needed
+
+## Useful commands
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py test
+python manage.py runserver
+```
+
+## Summary
+
+The project is a small-business cash-flow management backend with JWT auth, business-scoped data isolation, and reports that support operational decision-making. It is ready for local development with SQLite and can be extended to a full production deployment with a proper database and deployment configuration.
