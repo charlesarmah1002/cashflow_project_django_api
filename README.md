@@ -256,6 +256,17 @@ curl http://localhost:8000/api/auth/me/ \
    -H "Authorization: Bearer <access_token>"
 ```
 
+#### Change password
+
+Change the password for the authenticated user by providing the current password and a new password of at least 8 characters.
+
+```bash
+curl -X POST http://localhost:8000/api/auth/password/change/ \
+   -H "Authorization: Bearer <access_token>" \
+   -H "Content-Type: application/json" \
+   -d '{"current_password": "strong-password", "new_password": "new-strong-password"}'
+```
+
 ### Accounts
 
 Create an account with one of the supported types: `cash`, `bank`, `mobile_money`, or `other`.

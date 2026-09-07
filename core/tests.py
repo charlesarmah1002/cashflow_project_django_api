@@ -28,6 +28,18 @@ class CashflowAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
 
+    def test_password_change_updates_password(self):
+        response = self.client.post("/api/auth/password/change/", {"current_password": "strong-password", "new_password": "new-strong-password"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("new-strong-password"))
+
+    def test_password_change_rejects_incorrect_current_password(self):
+        response = self.client.post("/api/auth/password/change/", {"current_password": "wrong-password", "new_password": "new-strong-password"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("strong-password"))
+
     def test_transaction_creation_and_balance(self):
         response = self.client.post("/api/transactions/", {"account": self.account.id, "category": self.income_category.id, "type": "income", "amount": "50.00", "date": str(date.today())}, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
