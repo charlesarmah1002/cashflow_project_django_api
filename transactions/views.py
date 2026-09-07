@@ -5,6 +5,7 @@ from .serializers import CategorySerializer, TransactionSerializer
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
+    ordering = ["name", "id"]
     def get_queryset(self):
         qs = Category.objects.filter(business=self.request.user.business)
         value = self.request.query_params.get("type")

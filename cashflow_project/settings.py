@@ -39,6 +39,6 @@ REST_FRAMEWORK = {
 }
 from datetime import timedelta
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=60), "REFRESH_TOKEN_LIFETIME": timedelta(days=7)}
-CORS_ALLOWED_ORIGINS = [x for x in config("CORS_ALLOWED_ORIGINS", default="*").split(",") if x]
+CORS_ALLOWED_ORIGINS = [x for x in config("CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://localhost:5173").split(",") if x]
 
 ALLOWED_HOSTS = ['*']
